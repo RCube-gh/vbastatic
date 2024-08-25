@@ -1,0 +1,301 @@
+<!doctype html>
+<html>
+    <head>
+        <title>む</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 2em;
+                padding: 0;
+                background-color: #e0e0e0;
+                text-align: center;
+            }
+            header {
+                background-color: #222;
+                color: #fff;
+				padding-top: 2em;
+				padding-bottom: 2em;
+                font-size: 1.2em;
+                width: 90%;
+                margin: 0 auto;
+				padding-top: 3em;
+				padding-bottom: 3em;
+            }
+            main {
+                margin-top: 2em;
+				padding-top: 2em;
+				padding-bottom: 2em;
+                width: 90%;
+                margin: 0 auto;
+                background-color: #f0f0f0;
+            }
+            main p {
+                text-align: left;
+            }
+			main li{
+				text-align: left;
+				margin-top: 1em;
+			}
+			main figure{
+				margin-top: 3em;
+			}
+			main table{
+				width: 90%;
+				margin-top: 3em;
+				margin-left: auto;
+				margin-right: auto;
+			}
+            h2 {
+                margin-top: 10em;
+				font-size: 2em;
+            }
+            .schedule {
+                list-style-type: none;
+                padding-left: 0;
+                text-align: left;
+            }
+            .schedule li {
+                padding-left: 20%;
+                padding-bottom: 1em;
+            }
+
+            details {
+                text-align: left;
+                margin-left: 20%;
+				margin-top: 1em;
+            }
+			footer{
+				background-color: #222;
+				color: #fff;
+				font-size: 1em;
+				padding-top: 2em;
+				padding-bottom: 4em;
+				width: 90%;
+				margin-right: auto;
+				margin-left: auto;
+				margin-top: 0em;
+			}
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>マクロ的思考のすすめ。</h1>
+            <p>VBA作業用のstaticサイト。</p>
+        </header>
+        <main>
+            <h2>前回までのあらすじ</h2>
+            <hr />
+            <p>
+                前回は、請求書出力自動化の案件をなんとかもぎ取り、僕はその仕事を受けることになった。テンプレートファイルの作成と環境整備までが終わったところである。<br />今回は、おおまかなスケジュールの目安と作業の方向性を確認する。前準備として、本ページに予定やこれまでの作業を記録する。
+            </p>
+            <p>
+                このサイト普通に公開しちゃっていいのか？？そんなのは知らん。というか後で消します。
+            </p>
+            <h2>とりあえずスケジュール案</h2>
+            <hr />
+            <h4><b>全9回中のこり6回</b></h4>
+            <ul class="schedule">
+                <li>8/26(月) 第4回 スケジュール確認、方向性の確認</li>
+                <li>8/27(火) 第5回 要件定義の確認、作業、チェック</li>
+                <li>9/3(火) 第6回 プロトタイプ完成、チェック</li>
+                <li>9/5(木) 第7回 テスト、納品</li>
+                <li>9/6(金) 第8回 なし</li>
+                <li>9/9(月) 第9回 なし</li>
+            </ul>
+            <p>
+                割と適当。適宜修正したまえ。僕の性質上締め切りには結構ギリギリになりがちなので、早めを意識している。<br />また、チェックとかテストとかはよく分からんけど書いてみただけ。
+            </p>
+
+            <h2>プログラムの方向性</h2>
+            <hr />
+            <p>大体のフローを箇条書きで書いていくよ。適宜修正。</p>
+            <details>
+                <summary>前提として</summary>
+                とりあえずtemplateはローカルに置いておく。TEMPLATEディレクトリに入れるのは分かりやすくするため。<br>ディレクトリ内のファイルが名前で並ぶならlistもディレクトリに入れた方が良いかもしれない。<br>使いにくそうなら変更するが、考えたディレクトリ構造は以下の通り。<br />
+                |<br />
+                |<br />
+                |-- OUTPUT<br />
+                |&emsp;|--PDF<br />
+                |&emsp;|&emsp;|--aaa請求書.pdf<br />
+                |&emsp;|&emsp;|--bbb請求書.pdf<br />
+                |&emsp;|&emsp;|--ccc請求書.pdf<br />
+                |&emsp;|&emsp;|--ddd請求書.pdf<br />
+				|&emsp;|<br>
+                |&emsp;|--EXCEL<br />
+                |&emsp;|&emsp;|--aaa請求書.xlsx<br />
+                |&emsp;|&emsp;|--bbb請求書.xlsx<br />
+                |&emsp;|&emsp;|--ccc請求書.xlsx<br />
+                |&emsp;|&emsp;|--ddd請求書.xlsx<br />
+				|<br>
+                |-- TEMPLATE<br />
+                |&emsp;|--template.xlsx<br />
+				|<br>
+				|-- program.xlsm(出力自動化ツール.xlsm)<br>
+				|-- list1.xlsx<br>
+				|-- list2.xlsx<br>
+				|-- list3.xlsx<br>
+            </details>
+			<p>以下フロー。出来るだけ細かく書いてみる。</p>
+			<details>
+				<summary>1. ファイルを用意する。構成は上の通り。</summary>
+				<ul>
+					<li>構成は後から変更するかもしれないが、設定したとおりの構成になっているか確認。</li>
+					<li>program.xlsmからtemplate.xlsmとlist.xlsmを読み込む。</li>
+					<li>templateとoutputについては別途ディレクトリを用意。</li>
+				</ul>
+			</details>
+			<details>
+				<summary>2. program.xlsxのボタンを押す。</summary>
+				<ul>
+					<li>ボタンを押すとexplorerが開く。</li>
+					<li>表示されるファイルはxlsm、xlsxとかだけにする。</li>
+					<li>ファイルは複数選択できる。選択したファイルは配列にして返す。</li>
+					<li>何も選択されなかったらエラーをmsgboxで表示して終了。</li>
+					<li>TEMPLATE/template.xlsxが存在しなかったらエラーを出して終了。</li>
+					<li>OUTPUTディレクトリはカレントディレクトリ内に存在しなかったら作成。</li>
+					<li>OUTPUT/EXCEL,OUTPUT/PDFも、それぞれ存在しなかったら作成。</li>
+				</ul>
+			</details>
+			<details>
+				<summary>3. list1.xlsxを読み込む。</summary>
+				<ul>
+					<li>複数選択された場合には順次実行。</li>
+					<li>list内のA列を2行目から走査し、空白になったら終わりとみなす。</li>
+					<li>どの列にどの項目があるかはプログラム内に変数として指定。文字列検索はしない。</li>
+					<li>項目の位置の変数はボタンを使ってユーザが設定できるようにしても良いが、項目の内容やレイアウトが頻繁に変わるかどうかで決める。</li>
+				</ul>
+			</details>
+			<details>
+				<summary>4. template.xlsxを複製する。</summary>
+				<ul>
+					<li>複製したらOUTPUT/EXCELに会社名をファイル名にして保存。(例) 株式会社あいうえお請求書.xlsx</li>
+					<li>同じ名前のファイル名があったらエラーを出す。または会社名以外の標識を含める。情報が欠落するため、連番にはしたくない。</li>
+				</ul>
+			</details>
+			<details>
+				<summary>5. list1.xlsxの内容を複製したファイルに書き込んで保存。</summary>
+			</details>
+			<details>
+				<summary>6. excelからpdfを出力し、OUTPUT/PDFに保存。</summary>
+				<ol>
+					<li>保存してから書き込むか、書き込んでから保存するか。</li>
+				</ol>
+			</details>
+
+			
+
+
+
+
+
+
+
+
+
+
+
+            <h2>変数の命名規則とか</h2>
+            <hr />
+			<p>使う変数とか決めとく</p>
+			<ol>
+				<li>読み込む行と列、書き込む行と列は変数にしておく。</li>
+				<li>list中の位置は^[a-zA-Z]*ColFrom(int型)で、書き込む先は^[a-zA-Z]*CellTo(string型)とする。^[a-zA-Z]*ColFromは数字で指定するが、^[a-zA-Z]*CellToはstringで"B2"のように指定する。</li>
+				<li>program.xlsm中のstatusなどの一覧はlistRow,listColで書き込む位置を指定。</li>
+				<li>list.xlsx内の読み込みはtargetRowと各コンテンツの行を表す変数dateColFromなどで指定。</li>
+				<li>8行あるcontentsの読み込み元の行はcontent[2][8]の二次元配列でとっておいた。</li>
+				<li>変数名はいずれもキャメルケースとする。</li>
+			</ol>
+			
+            <h2>イメージ的には</h2>
+            <hr />
+			<p>なんとなくのイメージ図を載せておく。</p>
+			<figure>
+				<img src="fig1.png" alt="fig1" width="70%">
+				<figcaption>メイン画面。ボタンがある。</figcaption>
+			</figure>
+			<figure>
+				<img src="fig2.png" alt="fig2" width="70%">
+				<figcaption>ファイル選択画面。複数選択可能。<br>ここでTEMPLATEがないとエラーになる。</figcaption>
+			</figure>
+			<figure>
+				<img src="fig3.png" alt="fig3" width="70%">
+				<figcaption>何も選択しないとエラーを出して終わり。</figcaption>
+			</figure>
+
+			<table border="1">
+				<caption>こういう感じのリストから読み込む</caption>
+				<tr>
+					<th>date</th>
+					<th>company</th>
+					<th>name</th>
+					<th>content1-1</th>
+					<th>content2-1</th>
+					<th>content3-1</th>
+					<th>content1-2</th>
+					<th>content2-2</th>
+					<th>content3-2</th>
+					<th>statement</th>
+				</tr>
+				<tr>
+					<td>2022/11/11</td>
+					<td>company1</td>
+					<td>name1</td>
+					<td>たわし</td>
+					<td>メロン</td>
+					<td>合計</td>
+					<td>250</td>
+					<td>2000</td>
+					<td>10,000</td>
+					<td>輝く夜へようこそ！</td>
+				</tr>
+				<tr>
+					<td>2024/7/19</td>
+					<td>company2</td>
+					<td>name2</td>
+					<td>すいか</td>
+					<td>蛇口</td>
+					<td>合計</td>
+					<td>150</td>
+					<td>2400</td>
+					<td>10,000</td>
+					<td>それでも地球は回っている。</td>
+				</tr>
+				<tr>
+					<td>2028/4/24</td>
+					<td>company3</td>
+					<td>name3</td>
+					<td>とけい</td>
+					<td>ストロー</td>
+					<td>合計</td>
+					<td>1050</td>
+					<td>1300</td>
+					<td>300,000</td>
+					<td>お支払いはキャッシュで。</td>
+				</tr>
+			</table>
+			
+            <h2>一回コード書いてみたよ</h2>
+            <hr />
+            <h2>参考文献</h2>
+            <hr />
+			<h2>考えるべきこと</h2>
+			<hr>
+			<ul>
+				<li><b>テンプレートファイルの位置。</b>インターネットに置くのは良くないかもしれない。結局プログラムファイルと同梱するなら同ディレクトリ内に配置でも変わらない。</li>
+				<li><b>ディレクトリの構成。</b>リストファイルがどのように与えられるかを調べる。</li>
+				<li><b>リスト読み込みをどうするか。</b>前にやった業務では表をプログラムxlsm内に貼り付けてボタンを押す形だったが、コピペは普通に面倒。</li>
+				<li><b>excelファイルを出力するか。</b>pdfの方で間違いが見つかっても修正しやすい。無料ユーザはpdf編集やりづらいはず。知らんけど</li>
+				<li>他ファイルから値を読み込むとき一瞬開く。どうにかならんかね。</li>
+				<li>msgboxの文字の大きさやウィンドウサイズを変えられない。自作UIを書けば行けるかもしれないが、そこまでやるべきか不明。</li>
+			</ul>
+            <h2>次回の予定</h2>
+            <hr />
+            特に考えてない。なんか思いついたら書いとく。
+        </main>
+		<footer>
+			<p>どんどんどんどーんきー、どんきーほーてーー</p>
+		</footer>
+    </body>
+</html>

@@ -39,13 +39,31 @@
 				margin-top: 1em;
 			}
 			main figure{
-				margin-top: 3em;
+				margin-top: 8em;
 			}
 			main table{
 				width: 90%;
 				margin-top: 3em;
 				margin-left: auto;
 				margin-right: auto;
+			}
+			main button{
+				margin-top: 1em;
+				margin-bottom: 1em;
+				font-size: 1.5em;
+				color: #222;
+			}
+			main pre{
+				text-align: left;
+				margin-top: 2em;
+			}
+			.comment{
+				font-size: 1.6em;
+				border: 1px solid #000;
+			}
+			h1 {
+				font-size: 3em;
+				margin-top: 0;
 			}
             h2 {
                 margin-top: 10em;
@@ -202,15 +220,19 @@
 			<ol>
 				<li>読み込む行と列、書き込む行と列は変数にしておく。</li>
 				<li>list中の位置は^[a-zA-Z]*ColFrom(int型)で、書き込む先は^[a-zA-Z]*CellTo(string型)とする。^[a-zA-Z]*ColFromは数字で指定するが、^[a-zA-Z]*CellToはstringで"B2"のように指定する。</li>
+				<li>string型でセルを指定しようとしたけどCellsが使えなかったからRangeを使った。よく分からん。</li>
 				<li>program.xlsm中のstatusなどの一覧はlistRow,listColで書き込む位置を指定。</li>
 				<li>list.xlsx内の読み込みはtargetRowと各コンテンツの行を表す変数dateColFromなどで指定。</li>
 				<li>8行あるcontentsの読み込み元の行はcontent[2][8]の二次元配列でとっておいた。</li>
-				<li>変数名はいずれもキャメルケースとする。</li>
+				<li>出力先のファイル名はoutputNameという変数を使う。これに拡張子を足す。outputNameは今のところ$(会社名)+"請求書"でやってる。</li>
+				<li>変数名はいずれもキャメルケースとする。(一部の一時変数を除く)</li>
 			</ol>
 			
             <h2>イメージ的には</h2>
             <hr />
 			<p>なんとなくのイメージ図を載せておく。</p>
+			<p>本番ファイルがどんな感じだったかほとんど覚えていなかったため、僕の曖昧な記憶にあったなんとなくの構成で表を作る。</p>
+			<p>本番はもっと複雑な感じがあったので、まぁざっくりとしたイメージとしての図と思え。</p>
 			<figure>
 				<img src="fig1.png" alt="fig1" width="70%">
 				<figcaption>メイン画面。ボタンがある。</figcaption>
@@ -275,10 +297,209 @@
 					<td>お支払いはキャッシュで。</td>
 				</tr>
 			</table>
+			<figure>
+				<img src="fig4.png" alt="fig4" width="70%">
+				<figcaption>読み込みと書き込みが終わるとリストが表示されてメッセージが出現。</figcaption>
+			</figure>
+			<figure>
+				<img src="fig5.png" alt="fig5" width="70%">
+				<figcaption>OUTPUTディレクトリが作成されている。</figcaption>
+			</figure>
+			<figure>
+				<img src="fig6.png" alt="fig6" width="70%">
+				<figcaption>OUTPUTディレクトリの中はEXCELとPDFディレクトリが作成されている。</figcaption>
+			</figure>
+			<figure>
+				<img src="fig7.png" alt="fig7" width="70%">
+				<figcaption>EXCELディレクトリの中は一時的なエクセルファイルが保存されている。一応。</figcaption>
+			</figure>
+			<figure>
+				<img src="fig8.png" ALt="fig8" width="70%">
+				<figcaption>PDFディレクトリの中はPDFファイルが保存されている。これが最終的な結果になるはず。</figcaption>
+			</figure>
+			<figure>
+				<img src="fig9.png" alt="fig9" width="70%">
+				<figcaption>PDFファイルを開いてみた。ゴミみたいなファイルが生成されてるね!!<br>また、dateがおかしくなってることにも注目!</figcaption>
+			</figure>
 			
             <h2>一回コード書いてみたよ</h2>
             <hr />
+			<p>とりあえず書いてみた奴だけ。</p>
+			<button type="button" id="btn">コメントの表示/非表示</button>
+
+			<script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js?lang=css&skin=default"></script>
+			<pre class="prettyprint">
+Function selectfiles() As Variant<span class="comment">ファイルを選択させる関数</span>
+	Dim flist As Variant
+	flist = Application.GetOpenFilename(filefilter:="Excel Files, *.xlsx;*.xls;*.xlsm", MultiSelect:=True)
+	If IsArray(flist) Then
+		selectfiles = flist <span class="comment">選択されたファイルを配列で返す</span>
+	Else
+		MsgBox "Error: Nothing Selected"<span class="comment">なにも選択されなかったらエラー</span>
+		End
+	End If
+End Function
+Sub main() <span class="comment">メイン関数</span>
+    Dim fileList As Variant
+    Dim sheetName As String
+    Dim listRow As Integer, listCol As Integer
+    Dim contentColFrom(2, 8) As Integer
+    Dim targetRow As Integer
+    Dim FSO As Object
+    
+    Dim companyCellTo As String
+    Dim dateCellTo As String
+    Dim nameCellTo As String
+    Dim priceCellTo As String
+    Dim contentCellTo(2, 8) As String
+    Dim statementCellTo As String
+    
+    sheetName = "Sheet1"
+    listCol = 6
+    listRow = 1
+    dateColFrom = 1
+    companyColFrom = 2
+    nameColFrom = 3
+    
+	contentColFrom(1, 1) = 4 <span class="comment">リストファイル中の項目の位置を指定</span>
+    contentColFrom(1, 2) = 5
+    contentColFrom(1, 3) = 6
+    contentColFrom(1, 4) = 7
+    contentColFrom(1, 5) = 8
+    contentColFrom(1, 6) = 9
+    contentColFrom(1, 7) = 10
+    contentColFrom(1, 8) = 11
+    contentColFrom(2, 1) = 12
+    contentColFrom(2, 2) = 13
+    contentColFrom(2, 3) = 14
+    contentColFrom(2, 4) = 15
+    contentColFrom(2, 5) = 16
+    contentColFrom(2, 6) = 17
+    contentColFrom(2, 7) = 18
+    contentColFrom(2, 8) = 19
+    
+    statementColFrom = 20
+    
+    companyCellTo = "B4"<span class="comment">書き込む先の位置を指定</span>
+    dateCellTo = "G2"
+    nameCellTo = "C7"
+    priceCellTo = "C8"
+    statementCellTo = "B22"
+    
+    contentCellTo(1, 1) = "B12"
+    contentCellTo(1, 2) = "B13"
+    contentCellTo(1, 3) = "B14"
+    contentCellTo(1, 4) = "B15"
+    contentCellTo(1, 5) = "B16"
+    contentCellTo(1, 6) = "B17"
+    contentCellTo(1, 7) = "B18"
+    contentCellTo(1, 8) = "B19"
+    contentCellTo(2, 1) = "F12"
+    contentCellTo(2, 2) = "F13"
+    contentCellTo(2, 3) = "F14"
+    contentCellTo(2, 4) = "F15"
+    contentCellTo(2, 5) = "F16"
+    contentCellTo(2, 6) = "F17"
+    contentCellTo(2, 7) = "F18"
+    contentCellTo(2, 8) = "F19"
+    
+    
+    Set FSO = CreateObject("Scripting.FileSystemObject")
+    
+    fileList = selectfiles()<span class="comment">各フォルダが存在していなければ作成</span>
+    If Not FSO.folderexists("OUTPUT") Then
+        MkDir ("OUTPUT")
+    End If
+    If Not FSO.folderexists("OUTPUT/EXCEL") Then
+        MkDir ("OUTPUT/EXCEL")
+    End If
+    If Not FSO.folderexists("OUTPUT/PDF") Then
+        MkDir ("OUTPUT/PDF")
+    End If
+    If Not FSO.FileExists("TEMPLATE/template.xlsx") Then<span class="comment">templateが存在していなければエラー終了</span>
+        MsgBox "template.xlsx doesn't exist."
+        End
+    End If
+    
+    
+    While Cells(listRow, listCol) <> ""<span class="comment">program.xlsx中の一覧の書き込み開始位置を決める</span>
+        listRow = listRow + 1
+    Wend
+    
+    For Each filePath In fileList<span class="comment">選択されたファイルそれぞれに対して実行</span>
+        Dim fn As String
+        Dim wbFrom As Workbook
+        Dim wbTo As Workbook
+        Dim outputName As String
+        fn = Dir(filePath)
+        Set wbFrom = Workbooks.Open(filePath)
+        Set wsFrom = wbFrom.Worksheets(sheetName)
+        
+        targetRow = 2
+        While wsFrom.Cells(targetRow, 1).Value <> ""
+            outputName = wsFrom.Cells(targetRow, companyColFrom) & "請求書"<span class="comment">生成ファイルの名前を決定</span>
+            FileCopy "TEMPLATE/template.xlsx", "OUTPUT/EXCEL/" & outputName & ".xlsx"<span class="comment">テンプレートを複製してOUTPUTに保存</span>
+            
+            Set wbTo = Workbooks.Open("OUTPUT/EXCEL/" & outputName & ".xlsx")<span class="comment">書き込み先を指定</span>
+            
+            ThisWorkbook.Worksheets(1).Cells(listRow, listCol - 1) = wsFrom.Cells(targetRow, companyColFrom)<span class="comment">program.xlsx内の一覧に書き込む</span>
+            ThisWorkbook.Worksheets(1).Cells(listRow, listCol - 2) = "listed"
+            ThisWorkbook.Worksheets(1).Cells(listRow, listCol) = fn
+            ThisWorkbook.Worksheets(1).Cells(listRow, listCol + 1) = outputName
+            
+            wbTo.Worksheets(1).Range(dateCellTo) = wsFrom.Cells(targetRow, dateColFrom)<span class="comment">書き込む</span>
+            wbTo.Worksheets(1).Range(companyCellTo) = wsFrom.Cells(targetRow, companyColFrom)
+            wbTo.Worksheets(1).Range(nameCellTo) = wsFrom.Cells(targetRow, nameColFrom)
+            wbTo.Worksheets(1).Range(priceCellTo) = wsFrom.Cells(targetRow, contentColFrom(2, 8))
+            wbTo.Worksheets(1).Range(statementCellTo) = wsFrom.Cells(targetRow, statementColFrom)
+            wbTo.Worksheets(1).Range(contentCellTo(1, 1)) = wsFrom.Cells(targetRow, contentColFrom(1, 1))
+            wbTo.Worksheets(1).Range(contentCellTo(1, 2)) = wsFrom.Cells(targetRow, contentColFrom(1, 2))
+            wbTo.Worksheets(1).Range(contentCellTo(1, 3)) = wsFrom.Cells(targetRow, contentColFrom(1, 3))
+            wbTo.Worksheets(1).Range(contentCellTo(1, 4)) = wsFrom.Cells(targetRow, contentColFrom(1, 4))
+            wbTo.Worksheets(1).Range(contentCellTo(1, 5)) = wsFrom.Cells(targetRow, contentColFrom(1, 5))
+            wbTo.Worksheets(1).Range(contentCellTo(1, 6)) = wsFrom.Cells(targetRow, contentColFrom(1, 6))
+            wbTo.Worksheets(1).Range(contentCellTo(1, 7)) = wsFrom.Cells(targetRow, contentColFrom(1, 7))
+            wbTo.Worksheets(1).Range(contentCellTo(1, 8)) = wsFrom.Cells(targetRow, contentColFrom(1, 8))
+            wbTo.Worksheets(1).Range(contentCellTo(2, 1)) = wsFrom.Cells(targetRow, contentColFrom(2, 1))
+            wbTo.Worksheets(1).Range(contentCellTo(2, 2)) = wsFrom.Cells(targetRow, contentColFrom(2, 2))
+            wbTo.Worksheets(1).Range(contentCellTo(2, 3)) = wsFrom.Cells(targetRow, contentColFrom(2, 3))
+            wbTo.Worksheets(1).Range(contentCellTo(2, 4)) = wsFrom.Cells(targetRow, contentColFrom(2, 4))
+            wbTo.Worksheets(1).Range(contentCellTo(2, 5)) = wsFrom.Cells(targetRow, contentColFrom(2, 5))
+            wbTo.Worksheets(1).Range(contentCellTo(2, 6)) = wsFrom.Cells(targetRow, contentColFrom(2, 6))
+            wbTo.Worksheets(1).Range(contentCellTo(2, 7)) = wsFrom.Cells(targetRow, contentColFrom(2, 7))
+            wbTo.Worksheets(1).Range(contentCellTo(2, 8)) = wsFrom.Cells(targetRow, contentColFrom(2, 8))
+            
+            wbTo.ExportAsFixedFormat Type:=xlTypePDF, Filename:="OUTPUT/PDF/" & outputName & ".pdf"<span class="comment">PDFで保存する</span>
+            
+            
+            targetRow = targetRow + 1
+            ThisWorkbook.Worksheets(1).Cells(listRow, listCol) = fn
+            Call wbTo.Close(savechanges:=True)
+            ThisWorkbook.Worksheets(1).Cells(listRow, listCol - 2) = "done"
+            listRow = listRow + 1
+        Wend
+        Call wbFrom.Close(savechanges:=False)
+    Next
+    
+    Set wsFrom = Nothing
+    Set wbFrom = Nothing
+    MsgBox "ALL DONE. HAVE A GOOD DAY!!"
+End Sub
+			</pre>
+
             <h2>参考文献</h2>
+			<p>VBAについて調べたときのサイトをメモ程度に書いておくよ</p>
+			<ul>
+				<li><a href="https://www.sejuku.net/blog/28260">【VBA入門】Cellsでセルを指定(変数などRangeとの使い分けも解説)</a></li>
+				<li><a href="https://qiita.com/studio_haneya/items/9f5141b667efc3bfa615">Excel VBAでファイルを開く</a></li>
+				<li><a href="https://excel.kuuneruch.com/vba-excel-read/">他のexcelファイルを開く</a></li>
+				<li><a href="https://vba-hack.com/check-folder-exist/#rtoc-6">フォルダの存在をチェックする</a></li>
+				<li><a href="https://vba-hack.com/check-file-exist/">【Excel VBA】ファイルの存在チェック方法(FileSystemObject FileExists)</a></li>
+				<li><a href="https://exdy.net/macro/workbook-savecopyas/">VBAでワークブックのコピーを保存する</a></li>
+				<li><a href="https://wwwmoug.net/tech/exvba/0060075">ファイルをコピーするFileCopyステートメント</a></li>
+				<li><a href="https://www.sejuku.net/blog/99137">VBAでPDFで保存する方法。見た目を調整するコツを解説!</a></li>
+				<li><a href="https://www.automateexcel.com/vba/concatenate-text-strings/">VBA Concatenate Text Strings Together</a></li>
+			</ul>
             <hr />
 			<h2>考えるべきこと</h2>
 			<hr>
@@ -287,8 +508,14 @@
 				<li><b>ディレクトリの構成。</b>リストファイルがどのように与えられるかを調べる。</li>
 				<li><b>リスト読み込みをどうするか。</b>前にやった業務では表をプログラムxlsm内に貼り付けてボタンを押す形だったが、コピペは普通に面倒。</li>
 				<li><b>excelファイルを出力するか。</b>pdfの方で間違いが見つかっても修正しやすい。無料ユーザはpdf編集やりづらいはず。知らんけど</li>
-				<li>他ファイルから値を読み込むとき一瞬開く。どうにかならんかね。</li>
+				<li><b>[解決したい問題]</b>他ファイルから値を読み込むときわざわざ開く。どうにかならんかね。普通にopen/closeの時間が無駄な気がする。</li>
 				<li>msgboxの文字の大きさやウィンドウサイズを変えられない。自作UIを書けば行けるかもしれないが、そこまでやるべきか不明。</li>
+				<li>処理がすべて終わった後にexplorerでOUTPUT/PDFを自動で開くかどうか。好みの問題?</li>
+				<li>請求金額の欄はcontent欄の最後の合計がそのまま入ると思うが、合計が最終行にくる保証がない。現時点では請求金額はlist.xlsxのcontent8-2を参照しているが、8行埋まらないならoutputファイルのcontent欄を上から走査して最後の行から取ってくるみたいなことをしないといけない。</li>
+				<li>contentが8行を超える時どうするか。</li>
+				<li><b>[未解決問題]</b>日付をセルに書き込むときなんか変になる。</li>
+				<li>日付の形式がYYYY/MM/DDなのかYYYY年MM月DD日なのか。また、list.xlsxの書式とoutputの書式が異なるか。</li>
+				<li><b>[要解決問題]</b>同じ社名があったときにファイル名が衝突し、正しく保存されない。エラーが出なくても、上書きされる可能性。</li>
 			</ul>
             <h2>次回の予定</h2>
             <hr />
@@ -297,5 +524,20 @@
 		<footer>
 			<p>どんどんどんどーんきー、どんきーほーてーー</p>
 		</footer>
+        <script>
+        	function toggleComment(){
+				var comments = document.getElementsByClassName("comment");
+				for(var i = 0; i < comments.length; i++){
+					if(comments[i].style.display == "none"){
+						comments[i].style.display = "inline";
+					}else{
+						comments[i].style.display = "none";
+					}
+				}
+			}
+			let btn = document.getElementById("btn");
+			btn.addEventListener("click", toggleComment);
+        </script>
+
     </body>
 </html>

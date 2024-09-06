@@ -520,6 +520,15 @@ End Sub
             <h2>次回の予定</h2>
             <hr />
             特に考えてない。なんか思いついたら書いとく。
+			<h2>続きです。9/7</h2>
+			<p>
+				】の後に改行を入れる。変数などの定義は適宜調整。
+			</p>
+			<p>
+				Dim insertIndex As Integer<br>Dim result As String<br>Dim inputString As String<br>insertIndex = InStr(wsFrom.Cells(targetRow, nameColFrom), "】")<br>inputString = wsFrom.Cells(targetRow, nameColFrom)<br>result = Left(inputString, insertIndex) & vbLf & Right(inputString, Len(inputString) - insertIndex)<br>wbTo.Worksheets(1).Range(nameCellTo) = result
+				<br>↑のコードは、】の後に改行を入れるコード。】がない場合はエラーになるので、エラー処理を入れる。入れなくてもいい
+				<br>改行はvbLfを使う。他にもvbCr、vbCrLfがある。vbLfは改行、vbCrはキャリッジリターン、vbCrLfは改行とキャリッジリターンの組み合わせ。
+			</p>
         </main>
 		<footer>
 			<p>どんどんどんどーんきー、どんきーほーてーー</p>
